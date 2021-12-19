@@ -1,5 +1,3 @@
-from decimal import Decimal
-from typing import List
 import datetime as dt
 import matplotlib.pyplot as plt
 
@@ -10,19 +8,19 @@ class IRSNotAvailable(Exception):
     pass
 
 
-def irs(salary: Decimal, num_people=1) -> Decimal:
+def irs(salary, num_people=1) -> float:
     """Returns the taxed amount for the specified salary according to this year's IRS
     brackets.
 
     Args:
-        salary (d): Taxable income.
+        salary: Taxable income.
         num_people (int, optional): Number of people. Defaults to 1.
 
     Raises:
         IRSNotAvailable: Raised when the required year isn't available.
 
     Returns:
-        d: Taxed value.
+        float: Taxed value.
     """
     current = False
     year = int(dt.datetime.now().strftime("%Y"))
@@ -34,38 +32,38 @@ def irs(salary: Decimal, num_people=1) -> Decimal:
             if year < IRS.keys()[-1]:
                 raise IRSNotAvailable
 
-    tax = Decimal("0")
+    tax = 0
     salary /= num_people
 
     previous_ceiling = 0
     for ceiling, ptax in irs:
         if salary > ceiling:
-            tax += Decimal(ceiling - previous_ceiling) * ptax
+            tax += (ceiling - previous_ceiling) * ptax
         else:
-            tax += Decimal(salary - previous_ceiling) * ptax
+            tax += (salary - previous_ceiling) * ptax
             break
         previous_ceiling = ceiling
 
     tax *= num_people
-    return tax.quantize(Decimal("0.01"))
+    return round(tax, 2)
 
 
 class Income:
     SS = 4104
-    ss_tax = Decimal("0.11")
+    ss_tax = 0.11
 
     def __init__(self, salary=0, n_months=12, bonus=[], taxfree=0, n_people=1):
-        self.income = Decimal(salary) * n_months + Decimal(sum(bonus))
-        self.salary = Decimal(salary)
-        self.bonus = [Decimal(b) for b in bonus]
+        self.income = salary * n_months + sum(bonus)
+        self.salary = salary
+        self.bonus = bonus
         self.ss = self.income * self.ss_tax
-        self.taxfree = Decimal(taxfree)
+        self.taxfree = taxfree
         self.n_people = n_people
 
         self.year = int(dt.datetime.now().strftime("%Y")) + 1
 
     def gross(self):
-        return self.income
+        return round(self.income, 2)
 
     def net(self):
         if self.SS * self.n_people > self.ss:
@@ -74,18 +72,16 @@ class Income:
             collectable = self.income - self.ss
         tax = irs(collectable, self.n_people)
 
-        return (self.income - self.ss - tax + self.taxfree).quantize(Decimal("0.01"))
+        return round(self.income - self.ss - tax + self.taxfree, 2)
 
     def netsalary(self):
         for ceiling, *ptax in RETENTION[self.year]:
             if self.salary < ceiling:
-                return (self.salary * (1 - self.ss_tax - ptax[0])).quantize(
-                    Decimal("0.01")
-                )
+                return round(self.salary * (1 - self.ss_tax - ptax[0]), 2)
 
     def netbonus(self):
         return [
-            (bonus * (1 - self.ss_tax - ptax[0])).quantize(Decimal("0.01"))
+            round(bonus * (1 - self.ss_tax - ptax[0]), 2)
             for bonus in self.bonus
             for ceiling, *ptax in RETENTION[self.year]
             if bonus < ceiling
@@ -93,9 +89,7 @@ class Income:
 
 
 class Graph:
-    def __init__(
-        self, income: List[Decimal], expenses: List[Decimal], invested=[0] * 12
-    ):
+    def __init__(self, income: list, expenses: list, invested=[0] * 12):
         assert len(income) == 12
         assert len(expenses) == 12
         assert len(invested) == 12
